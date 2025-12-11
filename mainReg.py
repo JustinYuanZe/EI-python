@@ -1253,6 +1253,49 @@ plt.style.use('ggplot')
 warnings.filterwarnings('ignore')
 
 # ==========================================
+# 7b. MAE and Best Run Calculation
+# ==========================================
+print("--- Calculating MAE and finding Best Runs ---")
+
+# We need to reconstruct the MAE matrix to find the best run for each case.
+# This corresponds to the MATLAB lines:
+# mae = [mean(AEdf...1)', mean(AEt...1)' ...]
+# [bminmae, ibminmae] = min(mae)
+
+mae_list = []
+
+# Define ordered keys to match MATLAB's specific concatenation order
+# (s1c1_df, s1c1_t, s1c2_df, s1c2_t ... s6c3_t)
+ordered_keys = [f'{s}c{c}' for s in range(1, 7) for c in range(1, 4)]
+
+for key in ordered_keys:
+    # Retrieve Absolute Error matrices (20 runs x 41 time steps)
+    # These AE_df and AE_t dictionaries must exist from the previous "Absolute Error Calculation" step.
+    ae_df_vals = AE_df[key]
+    ae_t_vals  = AE_t[key]
+    
+    # Calculate Mean Absolute Error across time steps (axis=1)
+    # Result is a vector of 20 values (one per run)
+    mae_run_df = np.mean(ae_df_vals, axis=1)
+    mae_run_t  = np.mean(ae_t_vals, axis=1)
+    
+    mae_list.append(mae_run_df)
+    mae_list.append(mae_run_t)
+
+# Stack columns to create the MAE matrix (20 runs x 36 variables)
+mae_matrix = np.column_stack(mae_list)
+
+# Find the index of the run with the minimum MAE for each column
+# axis=0 means we look down the rows (runs) to find the min
+best_run_indices = np.argmin(mae_matrix, axis=0)
+
+# Store the minimum MAE values as well
+bminmae = np.min(mae_matrix, axis=0)
+
+print("Best run indices calculated.")
+# print("Indices:", best_run_indices)
+
+# ==========================================
 # 10. PLOTTING: Best Weights (Bar Charts)
 # ==========================================
 print("--- Plotting Best Weights ---")
