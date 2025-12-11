@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.io
 import warnings
+import matplotlib.pyplot as plt
 
 warnings.filterwarnings('ignore')
 
@@ -1298,70 +1299,85 @@ print("Best run indices calculated.")
 # ==========================================
 # 10. PLOTTING: Best Weights (Bar Charts)
 # ==========================================
-print("--- Plotting Best Weights ---")
+print("--- Plotting Best Weights for All Scenarios ---")
 
-# Function to plot grouped bar charts for weights
+# Helper function to create the grouped bar chart
 def plot_weights_bar(scenario_idx, case_idx, param_type, best_run_idx, weights_matrix):
     """
-    Plots the best weights for a specific scenario and case.
-    param_type: 'f_prime' (first 45 weights) or 'theta' (next 45 weights)
+    Plots the best weights (alpha, w, beta) for a specific scenario and case.
+    Mimics the MATLAB bar plot command.
     """
-    # Get the weights for the best run (first 90 elements)
+    # Extract the weights vector for the best run (first 90 elements)
     w_vector = weights_matrix[best_run_idx, :90]
     
-    # Define indices based on parameter type
-    # MATLAB: 1:15, 16:30, 31:45 (for f') or 46:60, 61:75, 76:90 (for theta)
+    # Determine indices based on parameter type (f' or theta)
+    # MATLAB: f' uses weights 1-45, theta uses weights 46-90
     if param_type == 'f_prime':
-        start = 0
+        start_idx = 0
         title_suffix = "f'"
     else:
-        start = 45
-        title_suffix = "theta"
+        start_idx = 45
+        title_suffix = r"\theta" # LaTeX formatting
         
-    alpha = w_vector[start : start+15]
-    w     = w_vector[start+15 : start+30]
-    beta  = w_vector[start+30 : start+45]
+    # Slice the weights into three groups: Alpha, W, Beta (15 neurons each)
+    # Python Indexing:
+    # Alpha: 0-14 (relative to start)
+    # W:    15-29
+    # Beta: 30-44
+    alpha = w_vector[start_idx : start_idx+15]
+    w     = w_vector[start_idx+15 : start_idx+30]
+    beta  = w_vector[start_idx+30 : start_idx+45]
     
-    # Grouped Bar Plot Setup
-    x = np.arange(15)  # 15 neurons
-    width = 0.25       # Width of each bar
+    # --- Plotting Configuration ---
+    neurons = np.arange(15)  # X-axis: 0 to 14
+    width = 0.25             # Width of bars
     
-    fig, ax = plt.subplots(figsize=(8, 4))
-    rects1 = ax.bar(x - width, alpha, width, label=r'$\alpha$')
-    rects2 = ax.bar(x,        w,     width, label=r'$w$')
-    rects3 = ax.bar(x + width, beta,  width, label=r'$\beta$')
+    fig, ax = plt.subplots(figsize=(10, 5))
     
+    # Create grouped bars (Shift positions to group them)
+    # Colors chosen to match standard MATLAB presentation (Blue, Orange/Yellow, Gray/Purple)
+    ax.bar(neurons - width, alpha, width, label=r'$\alpha$', color='blue')
+    ax.bar(neurons,        w,     width, label=r'$w$',      color='orange')
+    ax.bar(neurons + width, beta,  width, label=r'$\beta$',   color='gray')
+    
+    # Labels and Title
     ax.set_ylabel('Numerical values')
-    ax.set_xlabel('Weights (Neurons)')
-    ax.set_title(f'Best Weights - Scenario {scenario_idx} Case {case_idx} ({title_suffix})')
-    ax.set_xticks(x)
-    ax.legend()
+    ax.set_xlabel('Weights (Neuron Index)')
+    ax.set_title(f'Best Weights: Scenario {scenario_idx} Case {case_idx} for ${title_suffix}$')
+    ax.set_xticks(neurons)
+    ax.legend(loc='best')
+    ax.grid(True, linestyle='--', alpha=0.5)
     
-    # plt.savefig(f'weights_s{scenario_idx}_c{case_idx}_{param_type}.png')
+    # Show plot
+    plt.tight_layout()
     plt.show()
 
-# Loop through scenarios to generate weight plots
-# We use the 'best_run_indices' calculated in Step 5 (MAE Calculation)
-# Mapping: Index 0=s1c1_df, 1=s1c1_t, 2=s1c2_df...
+# --- Main Plotting Loop ---
+# Iterates through all 6 Scenarios and 3 Cases
 for s in range(1, 7):
     for c in range(1, 4):
+        # Construct key to access data (e.g., '1c1', '6c3')
         key = f'{s}c{c}'
-        # Calculate linear index for this case
-        # (s-1)*6 + (c-1)*2 is the index for 'df'
-        base_idx = (s - 1) * 6 + (c - 1) * 2
         
-        # Get best run index for this specific case
-        best_run = best_run_indices[base_idx] 
-        weights = data_sqp[key]
+        # Calculate the column index in the MAE matrix to find the best run.
+        # The MAE matrix was constructed as [S1C1_df, S1C1_t, S1C2_df, S1C2_t ...]
+        # We use the index for 'df' (f_prime) to select the best run for weights.
+        # Formula: (Scenario-1)*6 + (Case-1)*2
+        mae_col_idx = (s - 1) * 6 + (c - 1) * 2
         
-        # Plot f' weights
-        plot_weights_bar(s, c, 'f_prime', best_run, weights)
+        # Get the best run index from the previously calculated 'best_run_indices'
+        best_run = best_run_indices[mae_col_idx]
         
-        # Plot theta weights (using the same best run index found for df, 
-        # typically they are coupled, or you can use base_idx+1 for theta specific best run)
-        plot_weights_bar(s, c, 'theta', best_run, weights)
+        # Retrieve the weight matrix for this case using the correct dictionary: 'data_vars'
+        current_weights = data_vars[key]
+        
+        # 1. Plot weights for f' (first 45 weights)
+        plot_weights_bar(s, c, 'f_prime', best_run, current_weights)
+        
+        # 2. Plot weights for theta (next 45 weights)
+        plot_weights_bar(s, c, 'theta', best_run, current_weights)
 
-
+print("Best weight plotting completed.")
 # ==========================================
 # 11. PLOTTING: Numerical Comparisons
 # ==========================================
